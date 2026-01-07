@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-export default function PhaserGame() {
+export default function PhaserGame({ spawnTarget, onSitToggle }: { spawnTarget?: string | null, onSitToggle?: (isSitting: boolean, roomId?: string) => void }) {
     // Reference to the game instance to handle cleanup
     const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -20,6 +20,20 @@ export default function PhaserGame() {
                 // Create the game instance
                 phaserGame = new Phaser.Game(config);
                 gameRef.current = phaserGame;
+                
+                // Pass spawn target to registry if present
+                if (spawnTarget) {
+                    phaserGame.registry.set('spawnTarget', spawnTarget);
+                } else {
+                    phaserGame.registry.set('spawnTarget', null);
+                }
+
+                // Listen for sitting events
+                phaserGame.events.on('player-sit', (data: { isSitting: boolean, roomId?: string }) => {
+                    if (onSitToggle) {
+                        onSitToggle(data.isSitting, data.roomId);
+                    }
+                });
             }
         };
 
@@ -32,7 +46,7 @@ export default function PhaserGame() {
                 gameRef.current = null;
             }
         };
-    }, []);
+    }, [spawnTarget]); // Re-run if spawn target changes (though usually component unmounts/remounts on view switch)
 
     return (
         <div 

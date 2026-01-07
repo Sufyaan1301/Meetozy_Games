@@ -20,7 +20,7 @@ export class MainScene extends Scene {
 
     // Colors
     private colors = {
-        floor: 0x808080,
+        floor: 0x1A3D64,
         wall: 0x333333,
         door: 0xA0522D, // Sienna
         doorOpen: 0xCD853F, // Peru (Lighter)
@@ -38,7 +38,7 @@ export class MainScene extends Scene {
 
     preload() {
         // Load the player sprite
-        this.load.image('player', '/assets/player.png');
+        this.load.image('player', '/assets/owl_character.png');
     }
 
     create() {
@@ -60,20 +60,31 @@ export class MainScene extends Scene {
         this.createManagerRoom(walls, furniture, 1050, 50); // Starts at x=1050 (Gap=300)
         this.createEmployeeArea(walls, furniture, 50, 750); // Starts at y=750 (Gap=300 from top rooms)
 
-        // --- Player ---
-        // Spawn in the wide hallway
-        this.player = this.physics.add.sprite(900, 500, 'player');
+        // --- Spawn Logic ---
+        const spawnTarget = this.registry.get('spawnTarget');
+        let spawnX = 900;
+        let spawnY = 500;
+
+        if (spawnTarget === 'meeting-room') {
+            // Meeting room is at 50, 50 with door around 400, 450.
+            // Let's spawn inside near the table.
+            spawnX = 400;
+            spawnY = 300;
+        }
+
+        this.player = this.physics.add.sprite(spawnX, spawnY, 'player');
         
         // Scale down 
-        this.player.setScale(0.15); 
+        // Scale down to fit box (approx 80px)
+        this.player.setScale(0.08); 
         
         const body = this.player.body as Phaser.Physics.Arcade.Body;
         body.setCollideWorldBounds(true);
         
         // --- Hitbox Adjustment ---
-        // Making it smaller (40% width, 40% height)
-        body.setSize(this.player.width * 0.4, this.player.height * 0.4);
-        body.setOffset(this.player.width * 0.3, this.player.height * 0.3);
+        // Match hitbox to the unscaled character size (physics body scales with sprite)
+        body.setSize(this.player.width, this.player.height);
+        body.setOffset(0, 0);
 
         // --- Collisions ---
         this.physics.add.collider(this.player, walls);
@@ -178,6 +189,9 @@ export class MainScene extends Scene {
             this.isSitting = false;
             const body = this.player.body as Phaser.Physics.Arcade.Body;
             body.enable = true; // Re-enable collisions
+            
+            // Emit event
+            this.game.events.emit('player-sit', { isSitting: false });
             return;
         }
 
@@ -201,6 +215,10 @@ export class MainScene extends Scene {
             this.player.setPosition(chair.x, chair.y);
             const body = this.player.body as Phaser.Physics.Arcade.Body;
             body.enable = false; 
+
+            // Emit event
+            const roomId = chair.getData('room');
+            this.game.events.emit('player-sit', { isSitting: true, roomId });
         }
     }
 
@@ -226,6 +244,8 @@ export class MainScene extends Scene {
                 furniture.add(chair1);
                 furniture.add(chair2);
             }
+            chair1.setData('room', 'meeting-room');
+            chair2.setData('room', 'meeting-room');
         }
         this.addLabel(x, y, "Meeting Room");
     }
